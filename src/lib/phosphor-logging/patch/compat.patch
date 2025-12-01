@@ -1,0 +1,14 @@
+diff --git a/log_manager.cpp b/log_manager.cpp
+index e4c38d2..f10ff37 100644
+--- a/log_manager.cpp
++++ b/log_manager.cpp
+@@ -541,7 +541,8 @@ size_t Manager::eraseAll()
+             ++iter;
+             try
+             {
+-                if (!std::ranges::contains(logIDWithHwIsolation, e))
++                if (std::ranges::find(logIDWithHwIsolation, e) ==
++                    logIDWithHwIsolation.end())
+                 {
+                     erase(e);
+                 }

@@ -1,0 +1,39 @@
+diff --git a/include/stdplus/numeric/endian.hpp b/include/stdplus/numeric/endian.hpp
+index c517ec4..74a7e64 100644
+--- a/include/stdplus/numeric/endian.hpp
++++ b/include/stdplus/numeric/endian.hpp
+@@ -233,7 +233,18 @@ using uint64_unt = EndianPacked<std::uint64_t, std::endian::big>;
+ 
+ } // namespace stdplus
+ 
++#if __GNUC__ > 12
+ template <typename IntT, std::endian Endian, typename CharT>
+ struct std::formatter<stdplus::EndianPacked<IntT, Endian>, CharT> :
+     std::formatter<IntT, CharT>
+ {};
++#else
++namespace fmt
++{
++template <typename IntT, std::endian Endian, typename CharT>
++struct formatter<stdplus::EndianPacked<IntT, Endian>, CharT> :
++    formatter<IntT, CharT>
++{};
++} // namespace fmt
++#endif
++
+diff --git a/src/debug/lifetime.cpp b/src/debug/lifetime.cpp
+index 16f135d..2691149 100644
+--- a/src/debug/lifetime.cpp
++++ b/src/debug/lifetime.cpp
+@@ -4,7 +4,11 @@
+ using std::literals::string_view_literals::operator""sv;
+ 
+ template <typename CharT>
++#if __GNUC__ > 12
+ struct std::formatter<std::source_location, CharT>
++#else
++struct fmt::formatter<std::source_location, CharT>
++#endif
+ {
+     template <typename ParseContext>
+     constexpr auto parse(ParseContext& ctx)

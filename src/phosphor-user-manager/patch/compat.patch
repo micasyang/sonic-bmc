@@ -1,0 +1,20 @@
+diff --git a/meson.build b/meson.build
+index 1efe9d2..710c20a 100644
+--- a/meson.build
++++ b/meson.build
+@@ -84,6 +84,7 @@ cpp = meson.get_compiler('cpp')
+ ldap_dep = cpp.find_library('ldap', required: get_option('ldap'))
+ nlohmann_json_dep = dependency('nlohmann_json', include_type: 'system')
+ pam_dep = dependency('pam')
++fmt_dep = dependency('fmt')
+ phosphor_dbus_interfaces_dep = dependency('phosphor-dbus-interfaces')
+ phosphor_logging_dep = dependency('phosphor-logging')
+ sdbusplus_dep = dependency('sdbusplus')
+@@ -116,6 +117,7 @@ user_manager_src = ['mainapp.cpp', 'user_mgr.cpp', 'users.cpp']
+ user_manager_deps = [
+     nlohmann_json_dep,
+     pam_dep,
++    fmt_dep,
+     phosphor_dbus_interfaces_dep,
+     phosphor_logging_dep,
+     sdbusplus_dep,

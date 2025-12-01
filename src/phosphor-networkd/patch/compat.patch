@@ -1,0 +1,12 @@
+diff --git a/src/ncsi_cmd.cpp b/src/ncsi_cmd.cpp
+index e6cf534..d792cef 100644
+--- a/src/ncsi_cmd.cpp
++++ b/src/ncsi_cmd.cpp
+@@ -17,6 +17,7 @@
+ #include <stdplus/str/conv.hpp>
+ 
+ #include <climits>
++#include <charconv>
+ #include <fstream>
+ #include <iostream>
+ #include <map>

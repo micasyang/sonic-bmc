@@ -1,0 +1,74 @@
+# 使用官方 Debian Bookworm 作为基础镜像
+FROM debian:bookworm-slim
+
+# 设置非交互式环境变量，避免安装时卡住
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 更新包列表并安装所需系统依赖
+# 合并所有 apt 操作到一个 RUN 层以减小镜像体积
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        liburing2 \
+        libgpiod2 \
+        libssl3 \
+        libnghttp2-14 \
+        libtinyxml2-9 \
+        libfmt9 \
+        libldap-2.5-0 \
+        supervisor \
+        procps \
+        iproute2 \
+        python3-minimal \
+        python3-pip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /usr/share/doc /usr/share/man
+
+COPY dockers/pwhistory.conf dockers/pwquality.conf /etc/security/
+RUN rm -rf /usr/lib/python*/test
+RUN set -eux; \
+    groupadd redfish; \
+    groupadd ipmi; \
+    groupadd hostconsole; \
+    groupadd priv-admin; \
+    groupadd priv-operator; \
+    groupadd priv-user; \
+    echo 'root:123' | chpasswd; \
+    usermod -aG redfish,priv-admin root
+
+COPY ./supervisor/* /etc/supervisor/conf.d/
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制 target 目录（包含构建好的 deb 包）
+COPY target /app/target
+
+# 安装 deb 包，处理依赖问题
+RUN set -eux; \
+    fix_deps() { \
+        apt-get update; \
+        apt-get install -fy --no-install-recommends; \
+        apt-get clean; \
+        rm -rf /var/lib/apt/lists/*; \
+    }; \
+    if [ -d /app/target/lib ] && ls /app/target/lib/*.deb >/dev/null 2>&1; then \
+        dpkg -i /app/target/lib/*.deb || fix_deps; \
+    fi; \
+    if ls /app/target/*.deb >/dev/null 2>&1; then \
+        dpkg -i /app/target/*.deb || fix_deps; \
+    fi; \
+    ldconfig ;\
+    rm -rf /app/target
+
+COPY dockers/docker_init.sh /usr/bin/
+RUN chmod +x /usr/bin/docker_init.sh
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN mkdir -p /usr/share/phosphor-inventory-manager
+
+ENTRYPOINT ["/usr/bin/docker_init.sh"]
+
+# 可选：声明容器启动时的默认命令（可根据实际用途修改）
+# CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf", "-n"]

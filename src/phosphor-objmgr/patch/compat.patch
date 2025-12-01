@@ -1,0 +1,15 @@
+diff --git a/meson.build b/meson.build
+index 0a0db8c..c0f1d54 100644
+--- a/meson.build
++++ b/meson.build
+@@ -29,9 +29,7 @@ if (cxx.get_id() == 'clang')
+ endif
+ 
+ if (cxx.get_id() == 'gcc')
+-    if (cxx.version().version_compare('<13.0'))
+-        error('This project requires gcc-13 or higher')
+-    endif
++
+ 
+     add_project_arguments(
+         '-Wformat=2',

@@ -1,0 +1,99 @@
+diff --git a/common/entity_manager_interface.cpp b/common/entity_manager_interface.cpp
+index 1f4b093..e89f76a 100644
+--- a/common/entity_manager_interface.cpp
++++ b/common/entity_manager_interface.cpp
+@@ -6,7 +6,7 @@
+ #include <xyz/openbmc_project/Inventory/Item/client.hpp>
+ 
+ #include <algorithm>
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <utility>
+ 
+ namespace entity_manager
+@@ -20,10 +20,10 @@ using BasicVariantType =
+     std::variant<std::vector<std::string>, std::vector<uint8_t>, std::string,
+                  int64_t, uint64_t, double, int32_t, uint32_t, int16_t,
+                  uint16_t, uint8_t, bool>;
+-using BaseConfigMap = std::flat_map<std::string, BasicVariantType>;
+-using ConfigData = std::flat_map<std::string, BaseConfigMap>;
++using BaseConfigMap = boost::container::flat_map<std::string, BasicVariantType>;
++using ConfigData = boost::container::flat_map<std::string, BaseConfigMap>;
+ using ManagedObjectType =
+-    std::flat_map<sdbusplus::message::object_path, ConfigData>;
++    boost::container::flat_map<sdbusplus::message::object_path, ConfigData>;
+ 
+ EntityManagerInterface::EntityManagerInterface(
+     sdbusplus::async::context& ctx, const interface_list_t& interfaceNames,
+diff --git a/meson.build b/meson.build
+index 060e6f0..145b367 100644
+--- a/meson.build
++++ b/meson.build
+@@ -10,11 +10,13 @@ project(
+ phosphor_dbus_interfaces_dep = dependency('phosphor-dbus-interfaces')
+ phosphor_logging_dep = dependency('phosphor-logging')
+ sdbusplus_dep = dependency('sdbusplus')
++fmt_dep = dependency('fmt', required: true)
+ 
+ default_deps = [
+     phosphor_dbus_interfaces_dep,
+     phosphor_logging_dep,
+     sdbusplus_dep,
++    fmt_dep,
+ ]
+ 
+ common_include = include_directories('.')
+diff --git a/rtu/device/base_config.cpp b/rtu/device/base_config.cpp
+index d9e7e4f..fd0c4bd 100644
+--- a/rtu/device/base_config.cpp
++++ b/rtu/device/base_config.cpp
+@@ -6,7 +6,7 @@
+ #include <xyz/openbmc_project/Inventory/Item/client.hpp>
+ #include <xyz/openbmc_project/State/Leak/Detector/aserver.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ 
+ namespace phosphor::modbus::rtu::device::config
+ {
+@@ -17,10 +17,10 @@ using BasicVariantType =
+     std::variant<std::vector<std::string>, std::vector<uint8_t>, std::string,
+                  int64_t, uint64_t, double, int32_t, uint32_t, int16_t,
+                  uint16_t, uint8_t, bool>;
+-using InventoryBaseConfigMap = std::flat_map<std::string, BasicVariantType>;
+-using InventoryData = std::flat_map<std::string, InventoryBaseConfigMap>;
++using InventoryBaseConfigMap = boost::container::flat_map<std::string, BasicVariantType>;
++using InventoryData = boost::container::flat_map<std::string, InventoryBaseConfigMap>;
+ using ManagedObjectType =
+-    std::flat_map<sdbusplus::message::object_path, InventoryData>;
++    boost::container::flat_map<sdbusplus::message::object_path, InventoryData>;
+ 
+ static constexpr std::array<std::pair<std::string_view, Parity>, 3>
+     validParities = {
+diff --git a/rtu/inventory/modbus_inventory.cpp b/rtu/inventory/modbus_inventory.cpp
+index 22afa2a..32e2056 100644
+--- a/rtu/inventory/modbus_inventory.cpp
++++ b/rtu/inventory/modbus_inventory.cpp
+@@ -6,7 +6,7 @@
+ #include <xyz/openbmc_project/Configuration/ModbusRTUDetect/client.hpp>
+ #include <xyz/openbmc_project/Inventory/Item/client.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ 
+ namespace phosphor::modbus::rtu::inventory
+ {
+@@ -19,10 +19,10 @@ using BasicVariantType =
+     std::variant<std::vector<std::string>, std::vector<uint8_t>, std::string,
+                  int64_t, uint64_t, double, int32_t, uint32_t, int16_t,
+                  uint16_t, uint8_t, bool>;
+-using InventoryBaseConfigMap = std::flat_map<std::string, BasicVariantType>;
+-using InventoryData = std::flat_map<std::string, InventoryBaseConfigMap>;
++using InventoryBaseConfigMap = boost::container::flat_map<std::string, BasicVariantType>;
++using InventoryData = boost::container::flat_map<std::string, InventoryBaseConfigMap>;
+ using ManagedObjectType =
+-    std::flat_map<sdbusplus::message::object_path, InventoryData>;
++    boost::container::flat_map<sdbusplus::message::object_path, InventoryData>;
+ 
+ static constexpr std::array<std::pair<std::string_view, Parity>, 3>
+     validParities = {

@@ -1,0 +1,7 @@
+Package: phosphor-settingsd
+Version: 1.0.0
+Section: admin
+Priority: optional
+Architecture: amd64
+Maintainer: you@example.com
+Description: phosphor-settingsd

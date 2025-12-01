@@ -1,0 +1,20 @@
+diff --git a/meson.build b/meson.build
+index 0110986..a5f2e8b 100644
+--- a/meson.build
++++ b/meson.build
+@@ -45,6 +45,7 @@ boost = dependency(
+ )
+ sdbusplus = dependency('sdbusplus')
+ phosphor_logging_dep = dependency('phosphor-logging')
++fmt_dep = dependency('fmt', version: '>=9.0.0')
+ 
+ default_deps = [
+     boost,
+@@ -52,6 +53,7 @@ default_deps = [
+     phosphor_logging_dep,
+     sdbusplus,
+     uring,
++    fmt_dep,
+ ]
+ 
+ subdir('service_files')

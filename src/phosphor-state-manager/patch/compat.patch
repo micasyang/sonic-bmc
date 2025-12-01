@@ -1,0 +1,36 @@
+diff --git a/meson.build b/meson.build
+index a8e94be..46c4d28 100644
+--- a/meson.build
++++ b/meson.build
+@@ -92,6 +92,7 @@ sdbusplus = dependency('sdbusplus')
+ sdeventplus = dependency('sdeventplus')
+ phosphorlogging = dependency('phosphor-logging')
+ phosphordbusinterfaces = dependency('phosphor-dbus-interfaces')
++fmt_dep = dependency('fmt', version: '>=9.0.0')
+ libgpiod = dependency(
+     'libgpiod',
+     version: '>=1.4.1',
+@@ -135,7 +136,13 @@ settings_lib = static_library(
+ utils_lib = static_library(
+     'utils',
+     'utils.cpp',
+-    dependencies: [sdbusplus, phosphorlogging, phosphordbusinterfaces, libgpiod],
++    dependencies: [
++        sdbusplus,
++        phosphorlogging,
++        phosphordbusinterfaces,
++        libgpiod,
++        fmt_dep,
++    ],
+ )
+ 
+ executable(
+@@ -255,7 +262,7 @@ executable(
+ executable(
+     'phosphor-host-reset-recovery',
+     'host_reset_recovery.cpp',
+-    dependencies: [phosphorlogging, sdbusplus],
++    dependencies: [phosphorlogging, sdbusplus, fmt_dep],
+     implicit_include_directories: true,
+     install: true,
+ )
