@@ -26,7 +26,7 @@ clone:
 	else \
 		echo "$(SRC_DIR) already exists."; \
 	fi
-	@$(GIT) -C $(SRC_DIR) checkout .  # 或 main,根据实际分支调整
+	@$(GIT) -C $(SRC_DIR) checkout 85e956a9432577ae2a205f608cb18bc83311ce5c  # 或 main,根据实际分支调整
 
 # === 打补丁 ===
 patch: clone
