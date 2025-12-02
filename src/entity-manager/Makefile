@@ -23,11 +23,11 @@ all: install
 clone:
 	@if [ ! -d "$(SRC_DIR)" ]; then \
 		echo "Cloning entity-manager..."; \
-		$(GIT) clone https://github.com/kaiserus/entity-manager.git $(SRC_DIR); \
+		$(GIT) clone https://github.com/openbmc/entity-manager.git $(SRC_DIR); \
 	else \
 		echo "$(SRC_DIR) already exists."; \
 	fi
-	@$(GIT) -C $(SRC_DIR) checkout .  # 或 main,根据实际分支调整
+	@$(GIT) -C $(SRC_DIR) checkout 13112b5e7f5c632ca8eafe250116edac110cf01f  # 或 main,根据实际分支调整
 
 	@if [ ! -d "$(ROOT_DIR)/GSL" ]; then \
 		echo "Cloning GSL..."; \

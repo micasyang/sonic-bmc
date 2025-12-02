@@ -14,7 +14,7 @@ GIT := git
 MESON := meson
 NINJA := ninja
 
-.PHONY: all clone patch setup build install clean cleanall
+.PHONY: all clone patch setup build install clean cleanall install-deps
 
 all: install
 
@@ -29,7 +29,7 @@ clone:
 	@$(GIT) -C $(SRC_DIR) checkout .  # 或 main,根据实际分支调整
 
 # === 打补丁 ===
-patch: clone
+patch: install-deps clone
 	@echo "Looking for patches in $(PATCH_DIR)/"
 	@for p in $$(ls $(PATCH_DIR)/*.patch 2>/dev/null || exit 0); do \
 		echo "Applying $$p"; \
@@ -74,3 +74,7 @@ print-vars:
 	@echo "SRC_DIR=$(SRC_DIR)"
 	@echo "BUILD_DIR=$(BUILD_DIR)"
 	@echo "INSTALL_PREFIX=$(INSTALL_PREFIX)"
+
+install-deps:
+	apt update
+	apt install -y libnl-genl-3-dev libnl-3-dev

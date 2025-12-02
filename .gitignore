@@ -55,4 +55,6 @@ src/phosphor-settingsd/phosphor-settingsd
 
 src/phosphor-networkd/phosphor-networkd
 
+src/dbus-sensors/dbus-sensors
+
 target

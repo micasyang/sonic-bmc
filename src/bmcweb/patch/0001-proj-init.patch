@@ -1,0 +1,421 @@
+From f4a828c3bce8e43021197971bef1c8b037d759da Mon Sep 17 00:00:00 2001
+From: kaiserus <yy.1812@163.com>
+Date: Tue, 11 Nov 2025 18:45:04 +0800
+Subject: [PATCH] proj init
+
+---
+ http/logging.hpp             | 128 ++++++++++++++++++++++++++++++++++-
+ include/boost_formatters.hpp |  63 +++++++++++++++++
+ include/format               |  22 ++++++
+ include/json_formatters.hpp  |  37 ++++++++++
+ meson.build                  |  10 ++-
+ src/ssl_key_handler.cpp      |   4 ++
+ subprojects/sdbusplus.wrap   |   2 +-
+ 7 files changed, 256 insertions(+), 10 deletions(-)
+ create mode 100644 include/format
+
+diff --git a/http/logging.hpp b/http/logging.hpp
+index 5ce94704..cec81f1c 100644
+--- a/http/logging.hpp
++++ b/http/logging.hpp
+@@ -16,6 +16,11 @@
+ #include <type_traits>
+ #include <utility>
+ 
++#if __GNUC__ <= 12
++#include <fmt/format.h>
++#endif
++
++#if __GNUC__ > 12
+ // NOLINTBEGIN(readability-convert-member-functions-to-static, cert-dcl58-cpp)
+ template <>
+ struct std::formatter<void*>
+@@ -31,6 +36,10 @@ struct std::formatter<void*>
+     }
+ };
+ // NOLINTEND(readability-convert-member-functions-to-static, cert-dcl58-cpp)
++#else
++template <typename... Args>
++using bmcweb_format_string = std::string_view;
++#endif
+ 
+ namespace crow
+ {
+@@ -114,9 +123,10 @@ const void* logPtr(T p)
+                   "Can't use logPtr without pointer");
+     return std::bit_cast<const void*>(p);
+ }
+-
++template <typename... Args>
++using bmcweb_format_string = std::string_view;
+ template <LogLevel level, typename... Args>
+-inline void vlog(std::format_string<Args...>&& format, Args&&... args,
++inline void vlog(bmcweb_format_string<Args...>&& format, Args&&... args,
+                  const std::source_location& loc) noexcept
+ {
+     if (getBmcwebCurrentLoggingLevel() < level)
+@@ -131,6 +141,8 @@ inline void vlog(std::format_string<Args...>&& format, Args&&... args,
+         filename.remove_prefix(1);
+     }
+     std::string logLocation;
++    {
++#if __GNUC__ > 12
+     try
+     {
+         // TODO, multiple static analysis tools flag that this could potentially
+@@ -147,6 +159,29 @@ inline void vlog(std::format_string<Args...>&& format, Args&&... args,
+         logLocation += "Failed to format";
+         // Nothing more we can do here if logging is broken.
+     }
++#else
++        // GCC 12 fallback: build prefix and format with {fmt}
++        char prefix[256];
++        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg)
++        int n = std::snprintf(prefix, sizeof(prefix), "<%d>[%.*s:%u] ",
++                              systemdLevel, static_cast<int>(filename.size()),
++                              filename.data(), static_cast<unsigned>(loc.line()));
++        if (n > 0)
++        {
++            logLocation.append(prefix, static_cast<size_t>(
++                                         std::min(n, static_cast<int>(sizeof(prefix)) - 1)));
++        }
++        try
++        {
++            logLocation +=
++                fmt::vformat(format, fmt::make_format_args(args...));
++        }
++        catch (const fmt::format_error&)
++        {
++            logLocation += "Failed to format";
++        }
++#endif
++    }
+     logLocation += '\n';
+     // Intentionally ignore error return.
+     fwrite(logLocation.data(), sizeof(std::string::value_type),
+@@ -155,6 +190,7 @@ inline void vlog(std::format_string<Args...>&& format, Args&&... args,
+ }
+ } // namespace crow
+ 
++#if __GNUC__ > 12
+ template <typename... Args>
+ struct BMCWEB_LOG_CRITICAL
+ {
+@@ -236,6 +272,92 @@ template <typename... Args>
+ BMCWEB_LOG_INFO(std::format_string<Args...>, Args&&...)
+     -> BMCWEB_LOG_INFO<Args...>;
+ 
++#else
++template <typename... Args>
++struct BMCWEB_LOG_ERROR
++{
++    BMCWEB_LOG_ERROR( bmcweb_format_string<Args...> format,
++                      Args&&... args,
++                     const std::source_location& loc =
++                         std::source_location::current()) noexcept
++    {
++        crow::vlog<crow::LogLevel::Error, Args...>(
++            std::move(format), std::forward<Args>(args)..., loc);
++    }
++};
++
++template <typename... Args>
++BMCWEB_LOG_ERROR(bmcweb_format_string<Args...>, Args&&...)
++    -> BMCWEB_LOG_ERROR<Args...>;
++
++
+ template <typename... Args>
+-BMCWEB_LOG_DEBUG(std::format_string<Args...>, Args&&...)
++struct BMCWEB_LOG_WARNING
++{
++    BMCWEB_LOG_WARNING(bmcweb_format_string<Args...> format,
++                      Args&&... args,
++                      const std::source_location& loc =
++                         std::source_location::current()) noexcept
++    {
++        crow::vlog<crow::LogLevel::Warning, Args...>(
++            std::move(format), std::forward<Args>(args)..., loc);
++    }
++};
++
++template <typename... Args>
++BMCWEB_LOG_WARNING(bmcweb_format_string<Args...>, Args&&...)
++    -> BMCWEB_LOG_WARNING<Args...>;
++
++
++template <typename... Args>
++struct BMCWEB_LOG_INFO
++{
++    BMCWEB_LOG_INFO( bmcweb_format_string<Args...> format,
++                    Args&&... args,
++                    const std::source_location& loc =
++                         std::source_location::current()) noexcept
++    {
++        crow::vlog<crow::LogLevel::Info, Args...>(
++            std::move(format), std::forward<Args>(args)..., loc);
++    }
++};
++
++template <typename... Args>
++BMCWEB_LOG_INFO(bmcweb_format_string<Args...>, Args&&...)
++    -> BMCWEB_LOG_INFO<Args...>;
++
++template <typename... Args>
++struct BMCWEB_LOG_DEBUG
++{
++    BMCWEB_LOG_DEBUG( bmcweb_format_string<Args...> format,
++                     Args&&... args,
++                     const std::source_location& loc =
++                         std::source_location::current()) noexcept
++    {
++        crow::vlog<crow::LogLevel::Debug, Args...>(
++            std::move(format), std::forward<Args>(args)..., loc);
++    }
++};
++
++template <typename... Args>
++BMCWEB_LOG_DEBUG(bmcweb_format_string<Args...>, Args&&...)
+     -> BMCWEB_LOG_DEBUG<Args...>;
++
++
++template <typename... Args>
++struct BMCWEB_LOG_CRITICAL
++{
++    BMCWEB_LOG_CRITICAL(bmcweb_format_string<Args...> format,
++                     Args&&... args,
++                     const std::source_location& loc =
++                         std::source_location::current()) noexcept
++    {
++        crow::vlog<crow::LogLevel::Critical, Args...>(
++            std::move(format), std::forward<Args>(args)..., loc);
++    }
++};
++
++template <typename... Args>
++BMCWEB_LOG_CRITICAL(bmcweb_format_string<Args...>, Args&&...)
++    -> BMCWEB_LOG_CRITICAL<Args...>;
++#endif
+\ No newline at end of file
+diff --git a/include/boost_formatters.hpp b/include/boost_formatters.hpp
+index bf8397fa..7ddf3e20 100644
+--- a/include/boost_formatters.hpp
++++ b/include/boost_formatters.hpp
+@@ -10,6 +10,10 @@
+ #include <format>
+ #include <string_view>
+ 
++#if __GNUC__ <= 12
++#include <fmt/format.h>
++#endif
++
+ // NOLINTBEGIN(readability-convert-member-functions-to-static, cert-dcl58-cpp)
+ template <std::derived_from<boost::system::error_code> ErrorCodeType>
+ struct std::formatter<ErrorCodeType>
+@@ -65,3 +69,62 @@ struct std::formatter<StringView>
+     }
+ };
+ // NOLINTEND(readability-convert-member-functions-to-static, cert-dcl58-cpp)
++
++#if __GNUC__ <= 12
++// NOLINTBEGIN(readability-convert-member-functions-to-static, cert-dcl58-cpp)
++template <std::derived_from<boost::system::error_code> ErrorCodeType>
++struct fmt::formatter<ErrorCodeType>
++{
++    constexpr auto parse(fmt::format_parse_context& ctx)
++    {
++        return ctx.begin();
++    }
++
++    auto format(const ErrorCodeType& ec, auto& ctx) const
++    {
++        return fmt::format_to(ctx.out(), "{}", ec.what());
++    }
++};
++
++template <std::derived_from<boost::urls::grammar::string_view_base> StringView>
++struct fmt::formatter<StringView>
++{
++    constexpr auto parse(fmt::format_parse_context& ctx)
++    {
++        return ctx.begin();
++    }
++    auto format(const StringView& msg, auto& ctx) const
++    {
++        return fmt::format_to(ctx.out(), "{}",
++                              std::string_view(msg.data(), msg.size()));
++    }
++};
++
++template <std::derived_from<boost::urls::url_view_base> UrlBase>
++struct fmt::formatter<UrlBase>
++{
++    constexpr auto parse(fmt::format_parse_context& ctx)
++    {
++        return ctx.begin();
++    }
++    auto format(const UrlBase& msg, auto& ctx) const
++    {
++        return fmt::format_to(ctx.out(), "{}",
++                              std::string_view(msg.buffer()));
++    }
++};
++
++template <std::derived_from<boost::core::string_view> StringView>
++struct fmt::formatter<StringView>
++{
++    constexpr auto parse(fmt::format_parse_context& ctx)
++    {
++        return ctx.begin();
++    }
++    auto format(const StringView& msg, auto& ctx) const
++    {
++        return fmt::format_to(ctx.out(), "{}", std::string_view(msg));
++    }
++};
++// NOLINTEND(readability-convert-member-functions-to-static, cert-dcl58-cpp)
++#endif
+diff --git a/include/format b/include/format
+new file mode 100644
+index 00000000..02266fb9
+--- /dev/null
++++ b/include/format
+@@ -0,0 +1,22 @@
++#pragma once
++
++#include <fmt/format.h>
++#include <source_location>
++
++namespace std
++{
++    using fmt::v9::format;              // ✅ 注意 v9
++    using fmt::v9::format_to;
++    using fmt::v9::formatted_size;
++
++    template <class... T>
++    using format_string = fmt::v9::format_string<T...>;
++
++    using format_context = fmt::v9::format_context;
++    using format_parse_context = fmt::v9::format_parse_context;
++
++    template <class T, class Char = char>
++    struct formatter : fmt::v9::formatter<T, Char> {};
++
++    using format_error = fmt::v9::format_error;   // ✅ 关键修复
++}
+diff --git a/include/json_formatters.hpp b/include/json_formatters.hpp
+index e074316f..26255dc7 100644
+--- a/include/json_formatters.hpp
++++ b/include/json_formatters.hpp
+@@ -6,6 +6,10 @@
+ 
+ #include <format>
+ 
++#if __GNUC__ <= 12
++#include <fmt/format.h>
++#endif
++
+ // Clang-tidy would rather these be static, but using static causes the template
+ // specialization to not function.  Ignore the warning.
+ // NOLINTBEGIN(readability-convert-member-functions-to-static, cert-dcl58-cpp)
+@@ -39,3 +43,36 @@ struct std::formatter<nlohmann::json>
+     }
+ };
+ // NOLINTEND(readability-convert-member-functions-to-static, cert-dcl58-cpp)
++
++#if __GNUC__ <= 12
++// NOLINTBEGIN(readability-convert-member-functions-to-static, cert-dcl58-cpp)
++template <>
++struct fmt::formatter<nlohmann::json::json_pointer>
++{
++    constexpr auto parse(fmt::format_parse_context& ctx)
++    {
++        return ctx.begin();
++    }
++    auto format(const nlohmann::json::json_pointer& ptr, auto& ctx) const
++    {
++        return fmt::format_to(ctx.out(), "{}", ptr.to_string());
++    }
++};
++
++template <>
++struct fmt::formatter<nlohmann::json>
++{
++    static constexpr auto parse(fmt::format_parse_context& ctx)
++    {
++        return ctx.begin();
++    }
++    auto format(const nlohmann::json& json, auto& ctx) const
++    {
++        return fmt::format_to(
++            ctx.out(), "{}",
++            json.dump(-1, ' ', false,
++                      nlohmann::json::error_handler_t::replace));
++    }
++};
++// NOLINTEND(readability-convert-member-functions-to-static, cert-dcl58-cpp)
++#endif
+diff --git a/meson.build b/meson.build
+index 93c26b72..55c0f461 100644
+--- a/meson.build
++++ b/meson.build
+@@ -25,9 +25,7 @@ summary('Issues', project_issues_url, section: 'Report Issues')
+ 
+ # Validate the c++ Standard
+ 
+-if get_option('cpp_std') != 'c++23'
+-    error('This project requires c++23 support')
+-endif
++
+ 
+ # Get compiler and default build type
+ 
+@@ -115,9 +113,7 @@ if (cxx.get_id() == 'clang')
+ endif
+ 
+ if (cxx.get_id() == 'gcc')
+-    if (cxx.version().version_compare('<13.0'))
+-        error('This project requires gcc-13 or higher')
+-    endif
++
+ 
+     add_project_arguments(
+         '-Wformat=2',
+@@ -210,6 +206,8 @@ add_project_arguments(
+ # automatically during the configure step
+ bmcweb_dependencies = []
+ 
++bmcweb_dependencies += dependency('fmt', required : true)
++
+ pam = cxx.find_library('pam', required: true)
+ atomic = cxx.find_library('atomic', required: true)
+ bmcweb_dependencies += [pam, atomic]
+diff --git a/src/ssl_key_handler.cpp b/src/ssl_key_handler.cpp
+index 77388eee..57eb30c0 100644
+--- a/src/ssl_key_handler.cpp
++++ b/src/ssl_key_handler.cpp
+@@ -475,7 +475,11 @@ static int alpnSelectProtoCallback(
+     SSL* /*unused*/, const unsigned char** out, unsigned char* outlen,
+     const unsigned char* in, unsigned int inlen, void* /*unused*/)
+ {
++    #if NGHTTP2_VERSION_NUM >= 0x013b00
+     int rv = nghttp2_select_alpn(out, outlen, in, inlen);
++    #else
++    int rv = nghttp2_select_next_protocol((unsigned char **)out, outlen, in, inlen);
++    #endif
+     if (rv == -1)
+     {
+         return SSL_TLSEXT_ERR_NOACK;
+diff --git a/subprojects/sdbusplus.wrap b/subprojects/sdbusplus.wrap
+index 7b076d09..9fb041a2 100644
+--- a/subprojects/sdbusplus.wrap
++++ b/subprojects/sdbusplus.wrap
+@@ -1,5 +1,5 @@
+ [wrap-git]
+-url = https://github.com/openbmc/sdbusplus.git
++url = https://github.com/kaiserus/sdbusplus.git
+ revision = HEAD
+ 
+ [provide]
+-- 
+2.34.1
+

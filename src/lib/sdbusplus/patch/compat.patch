@@ -1,0 +1,22 @@
+diff --git a/include/sdbusplus/bus/match.hpp b/include/sdbusplus/bus/match.hpp
+index 9a0c766..6048be2 100644
+--- a/include/sdbusplus/bus/match.hpp
++++ b/include/sdbusplus/bus/match.hpp
+@@ -142,7 +142,7 @@ constexpr auto interfacesAdded(std::string_view p) noexcept
+     return interfacesAdded().append(path(p));
+ }
+ 
+-constexpr auto interfacesAddedAtPath(std::string_view p) noexcept
++inline auto interfacesAddedAtPath(std::string_view p) noexcept
+ {
+     return interfacesAdded().append(argNpath(0, p));
+ }
+@@ -152,7 +152,7 @@ constexpr auto interfacesRemoved(std::string_view p) noexcept
+     return interfacesRemoved().append(path(p));
+ }
+ 
+-constexpr auto interfacesRemovedAtPath(std::string_view p) noexcept
++inline auto interfacesRemovedAtPath(std::string_view p) noexcept
+ {
+     return interfacesRemoved().append(argNpath(0, p));
+ }

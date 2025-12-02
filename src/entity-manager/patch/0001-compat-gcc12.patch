@@ -1,0 +1,981 @@
+From 252050c90e9c7adb1f8afc08387c3dfa5b33d1d8 Mon Sep 17 00:00:00 2001
+From: kaiserus <yy.1812@163.com>
+Date: Mon, 17 Nov 2025 06:13:51 +0000
+Subject: [PATCH] compat gcc12
+
+---
+ meson.build                                 |  4 ++
+ src/entity_manager/dbus_interface.cpp       |  6 +--
+ src/entity_manager/dbus_interface.hpp       |  4 +-
+ src/entity_manager/devices.hpp              |  4 +-
+ src/entity_manager/entity_manager.cpp       |  2 +-
+ src/entity_manager/entity_manager.hpp       |  4 +-
+ src/entity_manager/log_device_inventory.cpp |  2 +-
+ src/entity_manager/meson.build              |  2 +-
+ src/entity_manager/overlay.cpp              |  2 +-
+ src/entity_manager/perform_probe.cpp        |  6 +--
+ src/entity_manager/perform_probe.hpp        |  2 +-
+ src/entity_manager/perform_scan.cpp         |  8 +--
+ src/entity_manager/perform_scan.hpp         |  2 +-
+ src/entity_manager/power_status_monitor.cpp |  6 +--
+ src/entity_manager/topology.cpp             |  6 +--
+ src/entity_manager/utils.hpp                |  6 +--
+ src/fru_device/fru_device.cpp               | 44 ++++++++--------
+ src/fru_device/fru_utils.cpp                | 57 +++++++++++----------
+ src/fru_device/fru_utils.hpp                | 29 ++++++-----
+ src/fru_device/gzip_utils.cpp               |  6 +--
+ src/fru_device/gzip_utils.hpp               |  4 +-
+ src/fru_device/meson.build                  |  1 +
+ src/gpio-presence/config_provider.cpp       | 12 ++---
+ src/utils.cpp                               |  4 +-
+ src/utils.hpp                               | 10 ++--
+ 25 files changed, 121 insertions(+), 112 deletions(-)
+
+diff --git a/meson.build b/meson.build
+index c364a9e..adcb08a 100644
+--- a/meson.build
++++ b/meson.build
+@@ -38,6 +38,10 @@ endif
+ nlohmann_json_dep = dependency('nlohmann_json', include_type: 'system')
+ sdbusplus = dependency('sdbusplus')
+ phosphor_logging_dep = dependency('phosphor-logging')
++fmt_dep = dependency('fmt', required: false)
++if not fmt_dep.found()
++    fmt_dep = cpp.find_library('fmt', required: true)
++endif
+ zlib_dep = dependency('zlib', include_type: 'system')
+ libxml2_dep = dependency('libxml-2.0', include_type: 'system')
+ 
+diff --git a/src/entity_manager/dbus_interface.cpp b/src/entity_manager/dbus_interface.cpp
+index 0610812..f481af3 100644
+--- a/src/entity_manager/dbus_interface.cpp
++++ b/src/entity_manager/dbus_interface.cpp
+@@ -5,7 +5,7 @@
+ 
+ #include <phosphor-logging/lg2.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <fstream>
+ #include <regex>
+ #include <string>
+@@ -266,7 +266,7 @@ static void addObjectRuntimeValidateJson(const nlohmann::json& newData,
+ }
+ 
+ void EMDBusInterface::addObject(
+-    const std::flat_map<std::string, JsonVariantType, std::less<>>& data,
++    const boost::container::flat_map<std::string, JsonVariantType, std::less<>>& data,
+     nlohmann::json& systemConfiguration, const std::string& jsonPointerPath,
+     const std::string& path, const std::string& board)
+ {
+@@ -381,7 +381,7 @@ void EMDBusInterface::createAddObjectMethod(
+         "AddObject",
+         [&systemConfiguration, jsonPointerPath{std::string(jsonPointerPath)},
+          path{std::string(path)}, board{std::string(board)},
+-         this](const std::flat_map<std::string, JsonVariantType, std::less<>>&
++         this](const boost::container::flat_map<std::string, JsonVariantType, std::less<>>&
+                    data) {
+             addObject(data, systemConfiguration, jsonPointerPath, path, board);
+         });
+diff --git a/src/entity_manager/dbus_interface.hpp b/src/entity_manager/dbus_interface.hpp
+index 1f978bc..08cbefe 100644
+--- a/src/entity_manager/dbus_interface.hpp
++++ b/src/entity_manager/dbus_interface.hpp
+@@ -8,7 +8,7 @@
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <vector>
+ 
+ namespace dbus_interface
+@@ -51,7 +51,7 @@ class EMDBusInterface
+ 
+   private:
+     void addObject(
+-        const std::flat_map<std::string, JsonVariantType, std::less<>>& data,
++        const boost::container::flat_map<std::string, JsonVariantType, std::less<>>& data,
+         nlohmann::json& systemConfiguration, const std::string& jsonPointerPath,
+         const std::string& path, const std::string& board);
+ 
+diff --git a/src/entity_manager/devices.hpp b/src/entity_manager/devices.hpp
+index ed0f8dc..d2c5bef 100644
+--- a/src/entity_manager/devices.hpp
++++ b/src/entity_manager/devices.hpp
+@@ -2,7 +2,7 @@
+ // SPDX-FileCopyrightText: Copyright 2018 Intel Corporation
+ 
+ #pragma once
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ 
+ namespace devices
+ {
+@@ -42,7 +42,7 @@ struct ExportTemplate
+     createsHWMon hasHWMonDir;
+ };
+ 
+-const std::flat_map<std::string_view, ExportTemplate, std::less<>>
++const boost::container::flat_map<std::string_view, ExportTemplate, std::less<>>
+     exportTemplates{
+         {{"EEPROM_24C01",
+           ExportTemplate("24c01 $Address", "/sys/bus/i2c/devices/i2c-$Bus",
+diff --git a/src/entity_manager/entity_manager.cpp b/src/entity_manager/entity_manager.cpp
+index 6bf3c52..aa1c40d 100644
+--- a/src/entity_manager/entity_manager.cpp
++++ b/src/entity_manager/entity_manager.cpp
+@@ -28,7 +28,7 @@
+ #include <xyz/openbmc_project/Inventory/Item/common.hpp>
+ 
+ #include <filesystem>
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <fstream>
+ #include <functional>
+ #include <map>
+diff --git a/src/entity_manager/entity_manager.hpp b/src/entity_manager/entity_manager.hpp
+index 70f7a4f..447027b 100644
+--- a/src/entity_manager/entity_manager.hpp
++++ b/src/entity_manager/entity_manager.hpp
+@@ -12,7 +12,7 @@
+ #include <sdbusplus/asio/connection.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <string>
+ 
+ class EntityManager
+@@ -84,7 +84,7 @@ class EntityManager
+     boost::asio::steady_timer propertiesChangedTimer;
+     size_t propertiesChangedInstance = 0;
+ 
+-    std::flat_map<std::string, sdbusplus::bus::match_t, std::less<>>
++    boost::container::flat_map<std::string, sdbusplus::bus::match_t, std::less<>>
+         dbusMatches;
+ 
+     void startRemovedTimer(boost::asio::steady_timer& timer,
+diff --git a/src/entity_manager/log_device_inventory.cpp b/src/entity_manager/log_device_inventory.cpp
+index 93cf156..4ec67f7 100644
+--- a/src/entity_manager/log_device_inventory.cpp
++++ b/src/entity_manager/log_device_inventory.cpp
+@@ -5,7 +5,7 @@
+ #include <nlohmann/json.hpp>
+ #include <xyz/openbmc_project/Inventory/Decorator/Asset/common.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <string>
+ 
+ struct InvAddRemoveInfo
+diff --git a/src/entity_manager/meson.build b/src/entity_manager/meson.build
+index 1fe9b08..217f7aa 100644
+--- a/src/entity_manager/meson.build
++++ b/src/entity_manager/meson.build
+@@ -9,7 +9,7 @@ endif
+ allowed = get_option('new-device-detection')
+ cpp_args_em += '-DEM_CACHE_CONFIGURATION=' + allowed.to_string()
+ 
+-em_deps = [boost, nlohmann_json_dep, phosphor_logging_dep, sdbusplus, valijson]
++em_deps = [boost, nlohmann_json_dep, phosphor_logging_dep, sdbusplus, valijson, fmt_dep]
+ 
+ entity_manager_lib = static_library(
+     'entity-manager',
+diff --git a/src/entity_manager/overlay.cpp b/src/entity_manager/overlay.cpp
+index f289715..28838a3 100644
+--- a/src/entity_manager/overlay.cpp
++++ b/src/entity_manager/overlay.cpp
+@@ -14,7 +14,7 @@
+ #include <phosphor-logging/lg2.hpp>
+ 
+ #include <filesystem>
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <fstream>
+ #include <iomanip>
+ #include <regex>
+diff --git a/src/entity_manager/perform_probe.cpp b/src/entity_manager/perform_probe.cpp
+index 94d3d21..f95f0c7 100644
+--- a/src/entity_manager/perform_probe.cpp
++++ b/src/entity_manager/perform_probe.cpp
+@@ -184,7 +184,7 @@ bool doProbe(const std::vector<std::string>& probeCommand,
+     if (ret && foundDevs.empty())
+     {
+         foundDevs.emplace_back(
+-            std::flat_map<std::string, DBusValueVariant, std::less<>>{},
++            boost::container::flat_map<std::string, DBusValueVariant, std::less<>>{},
+             std::string{});
+     }
+     if (matchOne && ret)
+@@ -220,7 +220,7 @@ PerformProbe::~PerformProbe()
+ 
+ FoundProbeTypeT findProbeType(const std::string& probe)
+ {
+-    static const std::flat_map<std::string_view, probe_type_codes, std::less<>>
++    static const boost::container::flat_map<std::string_view, probe_type_codes, std::less<>>
+         probeTypes{{{"FALSE", probe_type_codes::FALSE_T},
+                     {"TRUE", probe_type_codes::TRUE_T},
+                     {"AND", probe_type_codes::AND},
+@@ -228,7 +228,7 @@ FoundProbeTypeT findProbeType(const std::string& probe)
+                     {"FOUND", probe_type_codes::FOUND},
+                     {"MATCH_ONE", probe_type_codes::MATCH_ONE}}};
+ 
+-    std::flat_map<std::string_view, probe_type_codes,
++    boost::container::flat_map<std::string_view, probe_type_codes,
+                   std::less<>>::const_iterator probeType;
+     for (probeType = probeTypes.begin(); probeType != probeTypes.end();
+          ++probeType)
+diff --git a/src/entity_manager/perform_probe.hpp b/src/entity_manager/perform_probe.hpp
+index 0fdf674..ecf1971 100644
+--- a/src/entity_manager/perform_probe.hpp
++++ b/src/entity_manager/perform_probe.hpp
+@@ -2,7 +2,7 @@
+ 
+ #include "perform_scan.hpp"
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <memory>
+ #include <string>
+ #include <vector>
+diff --git a/src/entity_manager/perform_scan.cpp b/src/entity_manager/perform_scan.cpp
+index 85eb723..3b71d28 100644
+--- a/src/entity_manager/perform_scan.cpp
++++ b/src/entity_manager/perform_scan.cpp
+@@ -10,8 +10,9 @@
+ #include <phosphor-logging/lg2.hpp>
+ 
+ #include <charconv>
+-#include <flat_map>
+-#include <flat_set>
++#include <boost/container/flat_map.hpp>
++#include <boost/container/flat_set.hpp>
++boost::container::flat_set<std::string, std::less<>> dbusProbeInterfaces;
+ 
+ using GetSubTreeType = std::vector<
+     std::pair<std::string,
+@@ -99,7 +100,7 @@ static void processDbusObjects(
+ // for the paths that own the interfaces passed in.
+ void findDbusObjects(
+     std::vector<std::shared_ptr<probe::PerformProbe>>&& probeVector,
+-    std::flat_set<std::string, std::less<>>&& interfaces,
++    boost::container::flat_set<std::string, std::less<>>&& interfaces,
+     const std::shared_ptr<scan::PerformScan>& scan, boost::asio::io_context& io,
+     size_t retries = 5)
+ {
+@@ -542,7 +543,6 @@ void scan::PerformScan::updateSystemConfiguration(
+ 
+ void scan::PerformScan::run()
+ {
+-    std::flat_set<std::string, std::less<>> dbusProbeInterfaces;
+     std::vector<std::shared_ptr<probe::PerformProbe>> dbusProbePointers;
+ 
+     for (auto it = _configurations.begin(); it != _configurations.end();)
+diff --git a/src/entity_manager/perform_scan.hpp b/src/entity_manager/perform_scan.hpp
+index fc8382d..4c43a4f 100644
+--- a/src/entity_manager/perform_scan.hpp
++++ b/src/entity_manager/perform_scan.hpp
+@@ -8,7 +8,7 @@
+ #include <nlohmann/json.hpp>
+ #include <sdbusplus/asio/object_server.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <functional>
+ #include <list>
+ #include <vector>
+diff --git a/src/entity_manager/power_status_monitor.cpp b/src/entity_manager/power_status_monitor.cpp
+index 079c320..55bd87a 100644
+--- a/src/entity_manager/power_status_monitor.cpp
++++ b/src/entity_manager/power_status_monitor.cpp
+@@ -6,7 +6,7 @@
+ #include <sdbusplus/bus/match.hpp>
+ #include <xyz/openbmc_project/State/Host/client.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ 
+ namespace power
+ {
+@@ -35,13 +35,13 @@ bool PowerStatusMonitor::isPowerOn() const
+ {
+     return powerStatusOn;
+ }
+-
++#include <boost/container/flat_map.hpp>
+ void PowerStatusMonitor::handlePowerMatch(sdbusplus::message_t& message)
+ {
+     lg2::debug("power match triggered");
+ 
+     std::string objectName;
+-    std::flat_map<std::string, std::variant<std::string>> values;
++    boost::container::flat_map<std::string, std::variant<std::string>> values;
+     message.read(objectName, values);
+     auto findState = values.find(power::property);
+     if (findState != values.end())
+diff --git a/src/entity_manager/topology.cpp b/src/entity_manager/topology.cpp
+index bac8654..1a03f14 100644
+--- a/src/entity_manager/topology.cpp
++++ b/src/entity_manager/topology.cpp
+@@ -1,5 +1,5 @@
+ #include "topology.hpp"
+-
++#include <algorithm>
+ #include "phosphor-logging/lg2.hpp"
+ 
+ const AssocName assocContaining =
+@@ -170,7 +170,7 @@ std::unordered_map<std::string, std::set<Association>> Topology::getAssocs(
+ 
+     for (const auto& [boardPath, probePaths] : probePaths)
+     {
+-        if (std::ranges::contains(boardPaths, boardPath))
++        if (std::ranges::find(boardPaths, boardPath) != std::ranges::end(boardPaths))
+         {
+             for (const auto& path : probePaths)
+             {
+@@ -228,7 +228,7 @@ void Topology::fillAssocForPortId(
+         return;
+     }
+     // The downstream path must be one we care about.
+-    if (!std::ranges::contains(boardPaths, upstream))
++    if (std::ranges::find(boardPaths, upstream) == std::ranges::end(boardPaths))
+     {
+         return;
+     }
+diff --git a/src/entity_manager/utils.hpp b/src/entity_manager/utils.hpp
+index a8bba16..22bfd95 100644
+--- a/src/entity_manager/utils.hpp
++++ b/src/entity_manager/utils.hpp
+@@ -4,13 +4,13 @@
+ #include <nlohmann/json.hpp>
+ #include <sdbusplus/asio/connection.hpp>
+ 
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ 
+ using DBusValueVariant =
+     std::variant<std::string, int64_t, uint64_t, double, int32_t, uint32_t,
+                  int16_t, uint16_t, uint8_t, bool, std::vector<uint8_t>>;
+-using DBusInterface = std::flat_map<std::string, DBusValueVariant, std::less<>>;
+-using DBusObject = std::flat_map<std::string, DBusInterface, std::less<>>;
++using DBusInterface = boost::container::flat_map<std::string, DBusValueVariant, std::less<>>;
++using DBusObject = boost::container::flat_map<std::string, DBusInterface, std::less<>>;
+ 
+ constexpr const char* configurationOutDir = "/var/configuration/";
+ constexpr const char* versionHashFile = "/var/configuration/version";
+diff --git a/src/fru_device/fru_device.cpp b/src/fru_device/fru_device.cpp
+index 304cb0b..54541f4 100644
+--- a/src/fru_device/fru_device.cpp
++++ b/src/fru_device/fru_device.cpp
+@@ -7,6 +7,8 @@
+ #include <fcntl.h>
+ #include <sys/inotify.h>
+ #include <sys/ioctl.h>
++#include <gsl/gsl>
++#include <algorithm>
+ 
+ #include <boost/asio/io_context.hpp>
+ #include <boost/asio/steady_timer.hpp>
+@@ -21,8 +23,8 @@
+ #include <chrono>
+ #include <ctime>
+ #include <filesystem>
+-#include <flat_map>
+-#include <flat_set>
++#include <boost/container/flat_map.hpp>
++#include <boost/container/flat_set.hpp>
+ #include <fstream>
+ #include <functional>
+ #include <future>
+@@ -61,15 +63,15 @@ constexpr const char* fruDevice16BitDetectMode = FRU_DEVICE_16BITDETECTMODE;
+ 
+ // TODO Refactor these to not be globals
+ // NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+-static std::flat_map<size_t, std::optional<std::flat_set<size_t>>> busBlocklist;
++static boost::container::flat_map<size_t, std::optional<boost::container::flat_set<size_t>>> busBlocklist;
+ struct FindDevicesWithCallback;
+ 
+-static std::flat_map<std::pair<size_t, size_t>,
++static boost::container::flat_map<std::pair<size_t, size_t>,
+                      std::shared_ptr<sdbusplus::asio::dbus_interface>>
+     foundDevices;
+ 
+-static std::flat_map<size_t, std::flat_set<size_t>> failedAddresses;
+-static std::flat_map<size_t, std::flat_set<size_t>> fruAddresses;
++static boost::container::flat_map<size_t, boost::container::flat_set<size_t>> failedAddresses;
++static boost::container::flat_map<size_t, boost::container::flat_set<size_t>> fruAddresses;
+ 
+ boost::asio::io_context io;
+ // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+@@ -77,7 +79,7 @@ boost::asio::io_context io;
+ bool updateFruProperty(
+     const std::string& propertyValue, uint32_t bus, uint32_t address,
+     const std::string& propertyName,
+-    std::flat_map<std::pair<size_t, size_t>,
++    boost::container::flat_map<std::pair<size_t, size_t>,
+                   std::shared_ptr<sdbusplus::asio::dbus_interface>>&
+         dbusInterfaceMap,
+     size_t& unknownBusObjectCount, const bool& powerIsOn,
+@@ -231,7 +233,7 @@ static int64_t readData(bool is16bit, bool isBytewise, int file,
+                 file, static_cast<uint8_t>(offset), len, buf);
+         }
+ 
+-        std::span<uint8_t> bufspan{buf, len};
++        gsl::span<uint8_t> bufspan{buf, len};
+         for (size_t i = 0; i < len; i++)
+         {
+             int byte = i2c_smbus_read_byte_data(
+@@ -454,11 +456,11 @@ int getBusFRUs(int file, int first, int last, int bus,
+ 
+         // Scan for i2c eeproms loaded on this bus.
+         std::set<size_t> skipList = findI2CEeproms(bus, devices);
+-        std::flat_set<size_t>& failedItems = failedAddresses[bus];
+-        std::flat_set<size_t>& foundItems = fruAddresses[bus];
++        boost::container::flat_set<size_t>& failedItems = failedAddresses[bus];
++        boost::container::flat_set<size_t>& foundItems = fruAddresses[bus];
+         foundItems.clear();
+ 
+-        skipList.insert_range(addressBlocklist);
++        skipList.insert(addressBlocklist.begin(), addressBlocklist.end());
+ 
+         auto busFind = busBlocklist.find(bus);
+         if (busFind != busBlocklist.end())
+@@ -472,7 +474,7 @@ int getBusFRUs(int file, int first, int last, int bus,
+             }
+         }
+ 
+-        std::flat_set<size_t>* rootFailures = nullptr;
++        boost::container::flat_set<size_t>* rootFailures = nullptr;
+         int rootBus = getRootBus(bus);
+ 
+         if (rootBus >= 0)
+@@ -875,14 +877,14 @@ struct FindDevicesWithCallback :
+ 
+ void addFruObjectToDbus(
+     std::vector<uint8_t>& device,
+-    std::flat_map<std::pair<size_t, size_t>,
++    boost::container::flat_map<std::pair<size_t, size_t>,
+                   std::shared_ptr<sdbusplus::asio::dbus_interface>>&
+         dbusInterfaceMap,
+     uint32_t bus, uint32_t address, size_t& unknownBusObjectCount,
+     const bool& powerIsOn, const std::set<size_t>& addressBlocklist,
+     sdbusplus::asio::object_server& objServer)
+ {
+-    std::flat_map<std::string, std::string, std::less<>> formattedFRU;
++    boost::container::flat_map<std::string, std::string, std::less<>> formattedFRU;
+ 
+     std::optional<std::string> optionalProductName = getProductName(
+         device, formattedFRU, bus, address, unknownBusObjectCount);
+@@ -1005,7 +1007,7 @@ static bool readBaseboardFRU(std::vector<uint8_t>& baseboardFRU)
+ 
+ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+ {
+-    std::flat_map<std::string, std::string, std::less<>> tmp;
++    boost::container::flat_map<std::string, std::string, std::less<>> tmp;
+     if (fru.size() > maxFruSize)
+     {
+         lg2::error("Invalid fru.size() during writeFRU");
+@@ -1146,7 +1148,7 @@ bool writeFRU(uint8_t bus, uint8_t address, const std::vector<uint8_t>& fru)
+ 
+ void rescanOneBus(
+     BusMap& busmap, uint16_t busNum,
+-    std::flat_map<std::pair<size_t, size_t>,
++    boost::container::flat_map<std::pair<size_t, size_t>,
+                   std::shared_ptr<sdbusplus::asio::dbus_interface>>&
+         dbusInterfaceMap,
+     bool dbusCall, size_t& unknownBusObjectCount, const bool& powerIsOn,
+@@ -1216,7 +1218,7 @@ void rescanOneBus(
+ 
+ void rescanBusses(
+     BusMap& busmap,
+-    std::flat_map<std::pair<size_t, size_t>,
++    boost::container::flat_map<std::pair<size_t, size_t>,
+                   std::shared_ptr<sdbusplus::asio::dbus_interface>>&
+         dbusInterfaceMap,
+     size_t& unknownBusObjectCount, const bool& powerIsOn,
+@@ -1242,7 +1244,7 @@ void rescanBusses(
+         auto devDir = fs::path("/dev/");
+         std::vector<fs::path> i2cBuses;
+ 
+-        std::flat_map<size_t, fs::path> busPaths;
++        boost::container::flat_map<size_t, fs::path> busPaths;
+         if (!getI2cDevicePaths(devDir, busPaths))
+         {
+             lg2::error("unable to find i2c devices");
+@@ -1298,7 +1300,7 @@ void rescanBusses(
+ bool updateFruProperty(
+     const std::string& propertyValue, uint32_t bus, uint32_t address,
+     const std::string& propertyName,
+-    std::flat_map<std::pair<size_t, size_t>,
++    boost::container::flat_map<std::pair<size_t, size_t>,
+                   std::shared_ptr<sdbusplus::asio::dbus_interface>>&
+         dbusInterfaceMap,
+     size_t& unknownBusObjectCount, const bool& powerIsOn,
+@@ -1364,7 +1366,7 @@ int main()
+ 
+     // this is a map with keys of pair(bus number, address) and values of
+     // the object on dbus
+-    std::flat_map<std::pair<size_t, size_t>,
++    boost::container::flat_map<std::pair<size_t, size_t>,
+                   std::shared_ptr<sdbusplus::asio::dbus_interface>>
+         dbusInterfaceMap;
+ 
+@@ -1401,7 +1403,7 @@ int main()
+     std::function<void(sdbusplus::message_t & message)> eventHandler =
+         [&](sdbusplus::message_t& message) {
+             std::string objectName;
+-            std::flat_map<std::string, std::variant<std::string, bool, int64_t,
++            boost::container::flat_map<std::string, std::variant<std::string, bool, int64_t,
+                                                     uint64_t, double>>
+                 values;
+             message.read(objectName, values);
+diff --git a/src/fru_device/fru_utils.cpp b/src/fru_device/fru_utils.cpp
+index 1efcd30..b6baf86 100644
+--- a/src/fru_device/fru_utils.cpp
++++ b/src/fru_device/fru_utils.cpp
+@@ -4,9 +4,7 @@
+ #include "fru_utils.hpp"
+ 
+ #include "gzip_utils.hpp"
+-
+ #include <phosphor-logging/lg2.hpp>
+-
+ #include <array>
+ #include <cstddef>
+ #include <cstdint>
+@@ -87,8 +85,8 @@ enum SubManagementAccessRecord : uint8_t
+  * iterator is no longer usable.
+  */
+ std::pair<DecodeState, std::string> decodeFRUData(
+-    std::span<const uint8_t>::const_iterator& iter,
+-    std::span<const uint8_t>::const_iterator& end, bool isLangEng)
++    gsl::span<const uint8_t>::iterator& iter,
++    gsl::span<const uint8_t>::iterator& end, bool isLangEng)
+ {
+     std::string value;
+     unsigned int i = 0;
+@@ -210,7 +208,7 @@ bool checkLangEng(uint8_t lang)
+  * len:         Length of current area space and it is a multiple of 8 bytes
+  *              as per specification
+  */
+-bool verifyOffset(std::span<const uint8_t> fruBytes, fruAreas currentArea,
++bool verifyOffset(gsl::span<const uint8_t> fruBytes, fruAreas currentArea,
+                   uint8_t len)
+ {
+     unsigned int fruBytesSize = fruBytes.size();
+@@ -276,8 +274,8 @@ bool verifyOffset(std::span<const uint8_t> fruBytes, fruAreas currentArea,
+ }
+ 
+ static void parseMultirecordUUID(
+-    std::span<const uint8_t> device,
+-    std::flat_map<std::string, std::string, std::less<>>& result)
++    gsl::span<const uint8_t> device,
++    boost::container::flat_map<std::string, std::string, std::less<>>& result)
+ {
+     constexpr size_t uuidDataLen = 16;
+     constexpr size_t multiRecordHeaderLen = 5;
+@@ -303,7 +301,7 @@ static void parseMultirecordUUID(
+     }
+ 
+     areaOffset *= fruBlockSize;
+-    std::span<const uint8_t>::const_iterator fruBytesIter =
++    gsl::span<const uint8_t>::iterator fruBytesIter =
+         device.begin() + areaOffset;
+ 
+     /* Verify area offset */
+@@ -360,11 +358,11 @@ static void parseMultirecordUUID(
+ }
+ 
+ resCodes decodeField(
+-    std::span<const uint8_t>::const_iterator& fruBytesIter,
+-    std::span<const uint8_t>::const_iterator& fruBytesIterEndArea,
++    gsl::span<const uint8_t>::iterator& fruBytesIter,
++    gsl::span<const uint8_t>::iterator& fruBytesIterEndArea,
+     const std::vector<std::string>& fruAreaFieldNames, size_t& fieldIndex,
+     DecodeState& state, bool isLangEng, const fruAreas& area,
+-    std::flat_map<std::string, std::string, std::less<>>& result)
++    boost::container::flat_map<std::string, std::string, std::less<>>& result)
+ {
+     auto res = decodeFRUData(fruBytesIter, fruBytesIterEndArea, isLangEng);
+     state = res.first;
+@@ -431,8 +429,8 @@ resCodes decodeField(
+ }
+ 
+ resCodes formatIPMIFRU(
+-    std::span<const uint8_t> fruBytes,
+-    std::flat_map<std::string, std::string, std::less<>>& result)
++    gsl::span<const uint8_t> fruBytes,
++    boost::container::flat_map<std::string, std::string, std::less<>>& result)
+ {
+     resCodes ret = resCodes::resOK;
+     if (fruBytes.size() <= fruBlockSize)
+@@ -455,7 +453,7 @@ resCodes formatIPMIFRU(
+             continue;
+         }
+         offset *= fruBlockSize;
+-        std::span<const uint8_t>::const_iterator fruBytesIter =
++        gsl::span<const uint8_t>::iterator fruBytesIter =
+             fruBytes.begin() + offset;
+         if (fruBytesIter + fruBlockSize >= fruBytes.end())
+         {
+@@ -480,7 +478,7 @@ resCodes formatIPMIFRU(
+         }
+ 
+         size_t fruAreaSize = *fruBytesIter * fruBlockSize;
+-        std::span<const uint8_t>::const_iterator fruBytesIterEndArea =
++        gsl::span<const uint8_t>::iterator fruBytesIterEndArea =
+             fruBytes.begin() + offset + fruAreaSize - 1;
+         ++fruBytesIter;
+ 
+@@ -600,15 +598,15 @@ resCodes formatIPMIFRU(
+ }
+ 
+ // Calculate new checksum for fru info area
+-uint8_t calculateChecksum(std::span<const uint8_t>::const_iterator iter,
+-                          std::span<const uint8_t>::const_iterator end)
++uint8_t calculateChecksum(gsl::span<const uint8_t>::iterator iter,
++                          gsl::span<const uint8_t>::iterator end)
+ {
+     constexpr int checksumMod = 256;
+     uint8_t sum = std::accumulate(iter, end, static_cast<uint8_t>(0));
+     return (checksumMod - sum) % checksumMod;
+ }
+ 
+-uint8_t calculateChecksum(std::span<const uint8_t> fruAreaData)
++uint8_t calculateChecksum(gsl::span<const uint8_t> fruAreaData)
+ {
+     return calculateChecksum(fruAreaData.begin(), fruAreaData.end());
+ }
+@@ -998,8 +996,10 @@ static bool updateHeaderChecksum(std::vector<uint8_t>& fruData)
+     }
+ 
+     uint8_t& checksumInBytes = fruData[7];
+-    uint8_t checksum =
+-        calculateChecksum({fruData.begin(), fruData.begin() + 7});
++    // uint8_t checksum = calculateChecksum({fruData.begin(), fruData.begin() + 7});
++    auto header = gsl::make_span(fruData).subspan(0, 7);
++    uint8_t checksum = calculateChecksum(header);
++
+     std::swap(checksumInBytes, checksum);
+ 
+     if (checksumInBytes != checksum)
+@@ -1043,7 +1043,7 @@ bool updateAreaChecksum(std::vector<uint8_t>& fruArea)
+ }
+ 
+ static std::optional<size_t> calculateAreaSize(
+-    fruAreas area, std::span<const uint8_t> fruData, size_t areaOffset)
++    fruAreas area, gsl::span<const uint8_t> fruData, size_t areaOffset)
+ {
+     switch (area)
+     {
+@@ -1232,7 +1232,7 @@ static std::optional<FieldInfo> findOrCreateField(
+                      static_cast<size_t>(fieldIndex)};
+ }
+ 
+-static std::optional<size_t> findEndOfFieldMarker(std::span<uint8_t> bytes)
++static std::optional<size_t> findEndOfFieldMarker(gsl::span<uint8_t> bytes)
+ {
+     // we're skipping the checksum
+     // this function assumes a properly sized and formatted area
+@@ -1247,7 +1247,7 @@ static std::optional<size_t> findEndOfFieldMarker(std::span<uint8_t> bytes)
+     return std::nullopt;
+ }
+ 
+-static std::optional<size_t> getNonPaddedSizeOfArea(std::span<uint8_t> bytes)
++static std::optional<size_t> getNonPaddedSizeOfArea(gsl::span<uint8_t> bytes)
+ {
+     if (auto endOfFields = findEndOfFieldMarker(bytes))
+     {
+@@ -1288,7 +1288,7 @@ bool setField(const fruAreas& fruAreaToUpdate, std::vector<uint8_t>& areaData,
+     tmpBuffer.erase(fieldIt, fieldIt + fieldInfo->length + 1);
+     // Insert the new field value
+     tmpBuffer.insert(fieldIt, 0xc0 | value.size());
+-    tmpBuffer.insert_range(fieldIt + 1, value);
++    tmpBuffer.insert(fieldIt + 1, value.begin(), value.end());
+ 
+     auto newSize = getNonPaddedSizeOfArea(tmpBuffer);
+     auto oldSize = getNonPaddedSizeOfArea(areaData);
+@@ -1368,7 +1368,8 @@ bool assembleFruData(std::vector<uint8_t>& fruData,
+ 
+         // Set the area offset in the header
+         fruData[getHeaderAreaFieldOffset(area)] = writeOffset / fruBlockSize;
+-        fruData.append_range(areaBytes);
++        fruData.reserve(fruData.size() + areaBytes.size());
++        fruData.insert(fruData.end(), areaBytes.begin(), areaBytes.end());
+         writeOffset += areaBytes.size();
+     }
+ 
+@@ -1594,7 +1595,7 @@ bool copyRestFRUArea(std::vector<uint8_t>& fruData,
+ // regular expression and find the device index for all devices.
+ 
+ std::optional<int> findIndexForFRU(
+-    std::flat_map<std::pair<size_t, size_t>,
++    boost::container::flat_map<std::pair<size_t, size_t>,
+                   std::shared_ptr<sdbusplus::asio::dbus_interface>>&
+         dbusInterfaceMap,
+     std::string& productName)
+@@ -1640,7 +1641,7 @@ std::optional<int> findIndexForFRU(
+ 
+ std::optional<std::string> getProductName(
+     std::vector<uint8_t>& device,
+-    std::flat_map<std::string, std::string, std::less<>>& formattedFRU,
++    boost::container::flat_map<std::string, std::string, std::less<>>& formattedFRU,
+     uint32_t bus, uint32_t address, size_t& unknownBusObjectCount)
+ {
+     std::string productName;
+@@ -1732,7 +1733,7 @@ bool isFieldEditable(std::string_view fieldName)
+     }
+ 
+     // Match against editable fields
+-    return std::ranges::contains(editableFields, subField);
++    return std::ranges::find(editableFields, subField) != std::ranges::end(editableFields);
+ }
+ 
+ bool updateAddProperty(const std::string& propertyValue,
+diff --git a/src/fru_device/fru_utils.hpp b/src/fru_device/fru_utils.hpp
+index 1465a9d..53d0d42 100644
+--- a/src/fru_device/fru_utils.hpp
++++ b/src/fru_device/fru_utils.hpp
+@@ -5,10 +5,11 @@
+ #include "fru_reader.hpp"
+ 
+ #include <sdbusplus/asio/object_server.hpp>
+-
++#include <gsl/gsl>
+ #include <cstdint>
+ #include <cstdio>
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
++#include <boost/container/flat_set.hpp>
+ #include <functional>
+ #include <regex>
+ #include <string>
+@@ -22,8 +23,8 @@ extern "C"
+ 
+ constexpr size_t fruBlockSize = 8;
+ 
+-using DeviceMap = std::flat_map<int, std::vector<uint8_t>>;
+-using BusMap = std::flat_map<int, std::shared_ptr<DeviceMap>>;
++using DeviceMap = boost::container::flat_map<int, std::vector<uint8_t>>;
++using BusMap = boost::container::flat_map<int, std::shared_ptr<DeviceMap>>;
+ 
+ // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+ inline BusMap busMap;
+@@ -100,25 +101,25 @@ constexpr std::array<char, 6> bcdHighChars = {
+ 
+ char bcdPlusToChar(uint8_t val);
+ 
+-bool verifyOffset(std::span<const uint8_t> fruBytes, fruAreas currentArea,
++bool verifyOffset(gsl::span<const uint8_t> fruBytes, fruAreas currentArea,
+                   uint8_t len);
+ 
+ std::pair<DecodeState, std::string> decodeFRUData(
+-    std::span<const uint8_t>::const_iterator& iter,
+-    std::span<const uint8_t>::const_iterator& end, bool isLangEng);
++    gsl::span<const uint8_t>::iterator& iter,
++    gsl::span<const uint8_t>::iterator& end, bool isLangEng);
+ 
+ bool checkLangEng(uint8_t lang);
+ 
+ resCodes formatIPMIFRU(
+-    std::span<const uint8_t> fruBytes,
+-    std::flat_map<std::string, std::string, std::less<>>& result);
++    gsl::span<const uint8_t> fruBytes,
++    boost::container::flat_map<std::string, std::string, std::less<>>& result);
+ 
+ std::vector<uint8_t>& getFRUInfo(const uint16_t& bus, const uint8_t& address);
+ 
+-uint8_t calculateChecksum(std::span<const uint8_t>::const_iterator iter,
+-                          std::span<const uint8_t>::const_iterator end);
++uint8_t calculateChecksum(gsl::span<const uint8_t>::iterator iter,
++                          gsl::span<const uint8_t>::iterator end);
+ 
+-uint8_t calculateChecksum(std::span<const uint8_t> fruAreaData);
++uint8_t calculateChecksum(gsl::span<const uint8_t> fruAreaData);
+ 
+ unsigned int updateFRUAreaLenAndChecksum(
+     std::vector<uint8_t>& fruData, size_t fruAreaStart,
+@@ -198,7 +199,7 @@ bool copyRestFRUArea(std::vector<uint8_t>& fruData,
+ /// \return optional<int> highest index for fru device on success, return
+ /// nullopt on failure.
+ std::optional<int> findIndexForFRU(
+-    std::flat_map<std::pair<size_t, size_t>,
++    boost::container::flat_map<std::pair<size_t, size_t>,
+                   std::shared_ptr<sdbusplus::asio::dbus_interface>>&
+         dbusInterfaceMap,
+     std::string& productName);
+@@ -214,7 +215,7 @@ std::optional<int> findIndexForFRU(
+ 
+ std::optional<std::string> getProductName(
+     std::vector<uint8_t>& device,
+-    std::flat_map<std::string, std::string, std::less<>>& formattedFRU,
++    boost::container::flat_map<std::string, std::string, std::less<>>& formattedFRU,
+     uint32_t bus, uint32_t address, size_t& unknownBusObjectCount);
+ 
+ bool getFruData(std::vector<uint8_t>& fruData, uint32_t bus, uint32_t address);
+diff --git a/src/fru_device/gzip_utils.cpp b/src/fru_device/gzip_utils.cpp
+index 430fb91..e64cf6e 100644
+--- a/src/fru_device/gzip_utils.cpp
++++ b/src/fru_device/gzip_utils.cpp
+@@ -1,5 +1,5 @@
+ #include "gzip_utils.hpp"
+-
++#include <gsl/gsl>
+ #include <libxml/parser.h>
+ #include <libxml/xpath.h>
+ #include <unistd.h>
+@@ -10,7 +10,7 @@
+ #include <string>
+ #include <vector>
+ 
+-std::optional<std::string> gzipInflate(std::span<uint8_t> compressedBytes)
++std::optional<std::string> gzipInflate(gsl::span<uint8_t> compressedBytes)
+ {
+     std::string uncompressedBytes;
+     if (compressedBytes.empty())
+@@ -75,7 +75,7 @@ static std::vector<std::string> xpathText(xmlDocPtr doc, const char* xp)
+         {
+             xmlNodeSetPtr nodeTab = obj->nodesetval;
+             size_t nodeNr = static_cast<size_t>(nodeTab->nodeNr);
+-            std::span<xmlNodePtr> nodes{nodeTab->nodeTab, nodeNr};
++            gsl::span<xmlNodePtr> nodes{nodeTab->nodeTab, nodeNr};
+             for (xmlNodePtr node : nodes)
+             {
+                 unsigned char* keyword = xmlNodeGetContent(node);
+diff --git a/src/fru_device/gzip_utils.hpp b/src/fru_device/gzip_utils.hpp
+index db94a89..be5a169 100644
+--- a/src/fru_device/gzip_utils.hpp
++++ b/src/fru_device/gzip_utils.hpp
+@@ -2,7 +2,7 @@
+ // SPDX-FileCopyrightText: Copyright 2018 Intel Corporation
+ 
+ #pragma once
+-
++#include <gsl/gsl>
+ #include <array>
+ #include <cstdint>
+ #include <optional>
+@@ -10,7 +10,7 @@
+ #include <string>
+ #include <vector>
+ 
+-std::optional<std::string> gzipInflate(std::span<uint8_t> compressedBytes);
++std::optional<std::string> gzipInflate(gsl::span<uint8_t> compressedBytes);
+ 
+ std::vector<std::string> getNodeFromXml(std::string_view xml,
+                                         const char* nodeName);
+diff --git a/src/fru_device/meson.build b/src/fru_device/meson.build
+index b99d0d8..f6f142f 100644
+--- a/src/fru_device/meson.build
++++ b/src/fru_device/meson.build
+@@ -19,6 +19,7 @@ executable(
+     cpp_args: cpp_args_fd,
+     dependencies: [
+         boost,
++        fmt_dep,
+         i2c,
+         libxml2_dep,
+         nlohmann_json_dep,
+diff --git a/src/gpio-presence/config_provider.cpp b/src/gpio-presence/config_provider.cpp
+index e5089e4..109144e 100644
+--- a/src/gpio-presence/config_provider.cpp
++++ b/src/gpio-presence/config_provider.cpp
+@@ -8,8 +8,8 @@
+ #include <sdbusplus/async/match.hpp>
+ #include <sdbusplus/bus/match.hpp>
+ #include <xyz/openbmc_project/ObjectMapper/client.hpp>
+-
+-#include <flat_map>
++#include <algorithm>
++#include <boost/container/flat_map.hpp>
+ #include <ranges>
+ #include <string>
+ 
+@@ -18,8 +18,8 @@ PHOSPHOR_LOG2_USING;
+ using VariantType =
+     std::variant<std::vector<std::string>, std::string, int64_t, uint64_t,
+                  double, int32_t, uint32_t, int16_t, uint16_t, uint8_t, bool>;
+-using ConfigMap = std::flat_map<std::string, VariantType>;
+-using ConfigData = std::flat_map<std::string, ConfigMap>;
++using ConfigMap = boost::container::flat_map<std::string, VariantType>;
++using ConfigData = boost::container::flat_map<std::string, ConfigMap>;
+ 
+ namespace gpio_presence
+ {
+@@ -105,7 +105,7 @@ auto ConfigProvider::handleInterfacesAdded(AddedCallback addConfig)
+ 
+         debug("Detected interface added on {OBJPATH}", "OBJPATH", objPath);
+ 
+-        if (!std::ranges::contains(std::views::keys(intfMap), interface))
++        if (std::ranges::find(std::views::keys(intfMap), interface) == std::views::keys(intfMap).end())
+         {
+             continue;
+         }
+@@ -135,7 +135,7 @@ auto ConfigProvider::handleInterfacesRemoved(RemovedCallback removeConfig)
+                                               std::vector<std::string>>();
+         auto [objectPath, interfaces] = std::move(tmp);
+ 
+-        if (!std::ranges::contains(interfaces, interface))
++        if (std::ranges::find(interfaces, interface) == interfaces.end())
+         {
+             continue;
+         }
+diff --git a/src/utils.cpp b/src/utils.cpp
+index db476f3..7bc1494 100644
+--- a/src/utils.cpp
++++ b/src/utils.cpp
+@@ -10,7 +10,7 @@
+ #include <algorithm>
+ #include <cctype>
+ #include <filesystem>
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ #include <map>
+ #include <ranges>
+ #include <regex>
+@@ -79,7 +79,7 @@ bool findFiles(const std::vector<fs::path>& dirPaths,
+ }
+ 
+ bool getI2cDevicePaths(const fs::path& dirPath,
+-                       std::flat_map<size_t, fs::path>& busPaths)
++                       boost::container::flat_map<size_t, fs::path>& busPaths)
+ {
+     if (!fs::exists(dirPath))
+     {
+diff --git a/src/utils.hpp b/src/utils.hpp
+index b14a620..beee007 100644
+--- a/src/utils.hpp
++++ b/src/utils.hpp
+@@ -9,15 +9,15 @@
+ 
+ #include <charconv>
+ #include <filesystem>
+-#include <flat_map>
++#include <boost/container/flat_map.hpp>
+ 
+ using DBusValueVariant =
+     std::variant<std::string, int64_t, uint64_t, double, int32_t, uint32_t,
+                  int16_t, uint16_t, uint8_t, bool, std::vector<uint8_t>>;
+-using DBusInterface = std::flat_map<std::string, DBusValueVariant, std::less<>>;
+-using DBusObject = std::flat_map<std::string, DBusInterface, std::less<>>;
++using DBusInterface = boost::container::flat_map<std::string, DBusValueVariant, std::less<>>;
++using DBusObject = boost::container::flat_map<std::string, DBusInterface, std::less<>>;
+ using MapperGetSubTreeResponse =
+-    std::flat_map<std::string, DBusObject, std::less<>>;
++    boost::container::flat_map<std::string, DBusObject, std::less<>>;
+ using FirstIndex = size_t;
+ using LastIndex = size_t;
+ 
+@@ -29,7 +29,7 @@ bool findFiles(const std::vector<std::filesystem::path>& dirPaths,
+                std::vector<std::filesystem::path>& foundPaths);
+ 
+ bool getI2cDevicePaths(const std::filesystem::path& dirPath,
+-                       std::flat_map<size_t, std::filesystem::path>& busPaths);
++                       boost::container::flat_map<size_t, std::filesystem::path>& busPaths);
+ 
+ struct DBusInternalError final : public sdbusplus::exception_t
+ {
+-- 
+2.34.1
+

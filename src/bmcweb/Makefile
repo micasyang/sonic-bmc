@@ -23,11 +23,11 @@ all: install
 clone:
 	@if [ ! -d "$(SRC_DIR)" ]; then \
 		echo "Cloning bmcweb..."; \
-		$(GIT) clone https://github.com/kaiserus/bmcweb.git $(SRC_DIR); \
+		$(GIT) clone https://github.com/openbmc/bmcweb.git $(SRC_DIR) ; \
 	else \
 		echo "$(SRC_DIR) already exists."; \
 	fi
-	@$(GIT) -C $(SRC_DIR) checkout .  # 或 main,根据实际分支调整
+	@$(GIT) -C $(SRC_DIR) checkout 6926d43047446a1f08d4b157d48a30221ae8f87e  # 或 main,根据实际分支调整
 
 # === 打补丁 ===
 patch: clone
