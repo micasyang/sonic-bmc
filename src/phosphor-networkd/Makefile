@@ -5,7 +5,7 @@ PATCH_DIR := $(ROOT_DIR)/patch
 SRC_DIR := $(ROOT_DIR)/$(PROJ_NAME)
 BUILD_DIR := builddir
 BUILD_DIR_ALL := $(ROOT_DIR)/$(PROJ_NAME)/builddir
-INSTALL_PREFIX ?= /usr/local
+
 TARGET_DIR :="$(abspath $(CURDIR)/../../target)"
 include $(abspath $(ROOT_DIR)/../package.mk)
 
@@ -41,8 +41,10 @@ setup: patch
 	@if [ ! -d "$(BUILD_DIR_ALL)" ]; then \
 		cd $(SRC_DIR) && \
 		$(MESON) setup $(BUILD_DIR) $(SRC_DIR) \
+			--prefix=$(INSTALL_PREFIX) \
 			--buildtype=release \
 			--libdir=lib \
+			--native-file=$(ROOT_DIR)/../../native.ini \
 			-Doptimization=2 \
 			-Db_ndebug=true \
 			-Dstrip=true \

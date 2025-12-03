@@ -3,6 +3,7 @@ PACKAGE_MK_INCLUDED := 1
 PKGROOT :=pkgroot
 PKGROOT_DIR := $(ROOT_DIR)/$(PKGROOT)
 CONTROL_FILE :=$(ROOT_DIR)/DEBIAN/control
+INSTALL_PREFIX := /opt/bmc
 
 define package_deb
 	if [ ! -f "$(CONTROL_FILE)" ]; then \
@@ -21,7 +22,7 @@ endef
 
 define meson_package
 	rm -rf $(PKGROOT_DIR) && mkdir -p $(PKGROOT_DIR)
-	cd $(SRC_DIR) && DESTDIR=../../pkgroot $(NINJA) -C $(BUILD_DIR) install
+	cd $(SRC_DIR) && DESTDIR=$(PKGROOT_DIR) $(NINJA) -C $(BUILD_DIR) install
 endef
 
 endif # PACKAGE_MK_INCLUDED

@@ -5,7 +5,8 @@ PATCH_DIR := $(ROOT_DIR)/patch
 SRC_DIR := $(ROOT_DIR)/$(PROJ_NAME)
 BUILD_DIR := builddir
 BUILD_DIR_ALL := $(ROOT_DIR)/$(PROJ_NAME)/builddir
-INSTALL_PREFIX ?= /usr/local
+TARGET_DIR :="$(abspath $(CURDIR)/../../target)"
+include $(abspath $(ROOT_DIR)/../package.mk)
 
 # 工具
 GIT := git
@@ -24,6 +25,7 @@ clone:
 	else \
 		echo "$(SRC_DIR) already exists."; \
 	fi
+	@$(GIT) -C $(SRC_DIR) checkout .
 	@$(GIT) -C $(SRC_DIR) checkout 064e6ff77ad761d7c983d31a1d266c71416133e9  # 或 main,根据实际分支调整
 
 # === 打补丁 ===
@@ -42,6 +44,7 @@ setup: patch
 			--prefix=$(INSTALL_PREFIX) \
 			--buildtype=release \
 			--libdir=lib \
+			--native-file=$(ROOT_DIR)/../../native.ini \
 			-Doptimization=2 \
 			-Db_ndebug=true \
 			-Dstrip=true \

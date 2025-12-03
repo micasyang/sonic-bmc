@@ -5,7 +5,7 @@ PATCH_DIR := $(ROOT_DIR)/patch
 SRC_DIR := $(ROOT_DIR)/$(PROJ_NAME)
 BUILD_DIR := builddir
 BUILD_DIR_ALL := $(ROOT_DIR)/$(PROJ_NAME)/builddir
-INSTALL_PREFIX ?= /usr/local
+
 
 TARGET_DIR :="$(abspath $(CURDIR)/../../target)"
 include $(abspath $(ROOT_DIR)/../package.mk)

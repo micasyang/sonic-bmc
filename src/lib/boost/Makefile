@@ -4,7 +4,8 @@ BOOSTVERSION := 1.89.0
 PROJ_NAME := boost-$(BOOSTVERSION)
 PATCH_DIR := $(ROOT_DIR)/patch
 SRC_DIR := $(ROOT_DIR)/$(PROJ_NAME)
-INSTALL_PREFIX ?= /usr/local
+TARGET_DIR := $(abspath $(CURDIR)/../../../target/lib)
+include $(abspath $(ROOT_DIR)/../../package.mk)
 
 .PHONY: all clone patch setup build install clean cleanall
 
@@ -41,11 +42,11 @@ setup: patch
 
 # === 编译 ===
 build: setup
-	cd $(SRC_DIR) && ./b2 --prefix=/usr/local --with=all -j$(nproc)
+	cd $(SRC_DIR) && ./b2 --prefix=$(INSTALL_PREFIX) --with=all -j$(nproc)
 
 # === 安装 ===
 install: build
-	cd $(SRC_DIR) && ./b2 install
+	cd $(SRC_DIR) && ./b2 --prefix=$(INSTALL_PREFIX) install
 
 # === 清理 ===
 clean:
