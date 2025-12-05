@@ -58,3 +58,7 @@ src/phosphor-networkd/phosphor-networkd
 src/dbus-sensors/dbus-sensors
 
 target
+build
+tmp
+*.deb
+bmcweb_persistent_data.json

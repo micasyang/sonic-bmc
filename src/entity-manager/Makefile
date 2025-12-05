@@ -52,6 +52,7 @@ setup: patch
 	@if [ ! -d "$(BUILD_DIR_ALL)" ]; then \
 		cd $(SRC_DIR) && \
 		$(MESON) setup $(BUILD_DIR) $(SRC_DIR) \
+			--prefix=$(INSTALL_PREFIX) \
 			--buildtype=release \
 			--libdir=lib \
 			--native-file=$(ROOT_DIR)/../../native.ini \
@@ -69,13 +70,14 @@ build: setup
 
 # === 安装 ===
 install: build
-	cd $(SRC_DIR) && $(NINJA) -C $(BUILD_DIR) install
+	cd $(SRC_DIR) && yes | $(NINJA) -C $(BUILD_DIR) install
 	@$(meson_package)
 	@$(package_deb)
 
 # === 清理 ===
 clean:
 	@if [ -d "$(BUILD_DIR_ALL)" ]; then rm -rf $(BUILD_DIR_ALL); fi
+	@if [ -d "$(PKGROOT_DIR)" ]; then rm -rf $(PKGROOT_DIR); fi
 
 cleanall:
 	rm -rf $(SRC_DIR) $(BUILD_DIR_ALL)

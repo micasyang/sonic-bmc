@@ -5,7 +5,7 @@ PATCH_DIR := $(ROOT_DIR)/patch
 SRC_DIR := $(ROOT_DIR)/$(PROJ_NAME)
 BUILD_DIR := builddir
 BUILD_DIR_ALL := $(ROOT_DIR)/$(PROJ_NAME)/builddir
-TARGET_DIR := $(abspath $(CURDIR)/../../../target/lib)
+TARGET_DIR := $(abspath $(CURDIR)/../../../target)
 include $(abspath $(ROOT_DIR)/../../package.mk)
 
 # 工具
@@ -44,6 +44,7 @@ setup: patch
 			--prefix=$(INSTALL_PREFIX) \
 			--buildtype=release \
 			--libdir=lib \
+			-Dlibonly=true \
 			--native-file=$(ROOT_DIR)/../../../native.ini \
 			-Doptimization=2 \
 			-Db_ndebug=true \
@@ -65,6 +66,7 @@ install: build
 # === 清理 ===
 clean:
 	@if [ -d "$(BUILD_DIR_ALL)" ]; then rm -rf $(BUILD_DIR_ALL); fi
+	@if [ -d "$(PKGROOT_DIR)" ]; then rm -rf $(PKGROOT_DIR); fi
 
 cleanall:
 	rm -rf $(SRC_DIR) $(BUILD_DIR_ALL)

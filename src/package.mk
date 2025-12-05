@@ -3,7 +3,7 @@ PACKAGE_MK_INCLUDED := 1
 PKGROOT :=pkgroot
 PKGROOT_DIR := $(ROOT_DIR)/$(PKGROOT)
 CONTROL_FILE :=$(ROOT_DIR)/DEBIAN/control
-INSTALL_PREFIX := /opt/bmc
+INSTALL_PREFIX := /sonic/src/sonic-bmc/sonic-bmc/build
 
 define package_deb
 	if [ ! -f "$(CONTROL_FILE)" ]; then \
@@ -23,6 +23,8 @@ endef
 define meson_package
 	rm -rf $(PKGROOT_DIR) && mkdir -p $(PKGROOT_DIR)
 	cd $(SRC_DIR) && DESTDIR=$(PKGROOT_DIR) $(NINJA) -C $(BUILD_DIR) install
+	mkdir -p $(PKGROOT_DIR)/usr/local/ && cp -r $(PKGROOT_DIR)/$(INSTALL_PREFIX)/* $(PKGROOT_DIR)/usr/local/
+	rm -rf $(PKGROOT_DIR)/sonic
 endef
 
 endif # PACKAGE_MK_INCLUDED

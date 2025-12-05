@@ -27,9 +27,10 @@ clone:
 		echo "$(SRC_DIR) already exists."; \
 	fi
 	@$(GIT) -C $(SRC_DIR) checkout .  # 或 main,根据实际分支调整
-
+	@$(GIT) -C $(SRC_DIR) checkout 137d9441a873ca2b35351684737f18afb80defc8
+	
 # === 打补丁 ===
-patch: install-deps clone
+patch: clone
 	@echo "Looking for patches in $(PATCH_DIR)/"
 	@for p in $$(ls $(PATCH_DIR)/*.patch 2>/dev/null || exit 0); do \
 		echo "Applying $$p"; \
@@ -65,6 +66,7 @@ install: build
 # === 清理 ===
 clean:
 	@if [ -d "$(BUILD_DIR_ALL)" ]; then rm -rf $(BUILD_DIR_ALL); fi
+	@if [ -d "$(PKGROOT_DIR)" ]; then rm -rf $(PKGROOT_DIR); fi
 
 cleanall:
 	rm -rf $(SRC_DIR) $(BUILD_DIR_ALL)
@@ -76,7 +78,3 @@ print-vars:
 	@echo "SRC_DIR=$(SRC_DIR)"
 	@echo "BUILD_DIR=$(BUILD_DIR)"
 	@echo "INSTALL_PREFIX=$(INSTALL_PREFIX)"
-
-install-deps:
-	apt update
-	apt install -y libnl-genl-3-dev libnl-3-dev

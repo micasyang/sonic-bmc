@@ -47,6 +47,7 @@ setup: patch
 			--libdir=lib \
 			--native-file=$(ROOT_DIR)/../../native.ini \
 			-Doptimization=2 \
+			-Dwerror=false	\
 			-Db_ndebug=true \
 			-Dstrip=true \
 			-Ddefault_library=shared \
@@ -65,6 +66,7 @@ install: build
 # === 清理 ===
 clean:
 	@if [ -d "$(BUILD_DIR_ALL)" ]; then rm -rf $(BUILD_DIR_ALL); fi
+	@if [ -d "$(PKGROOT_DIR)" ]; then rm -rf $(PKGROOT_DIR); fi
 
 cleanall:
 	rm -rf $(SRC_DIR) $(BUILD_DIR_ALL)
