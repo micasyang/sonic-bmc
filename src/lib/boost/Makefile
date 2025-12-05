@@ -4,7 +4,7 @@ BOOSTVERSION := 1.89.0
 PROJ_NAME := boost-$(BOOSTVERSION)
 PATCH_DIR := $(ROOT_DIR)/patch
 SRC_DIR := $(ROOT_DIR)/$(PROJ_NAME)
-TARGET_DIR := $(abspath $(CURDIR)/../../../target/lib)
+TARGET_DIR := $(abspath $(CURDIR)/../../../target)
 include $(abspath $(ROOT_DIR)/../../package.mk)
 
 .PHONY: all clone patch setup build install clean cleanall

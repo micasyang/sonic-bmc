@@ -3,8 +3,9 @@ PROJ_ROOT_DIR := $(dir $(abspath $(firstword $(MAKEFILE_LIST))))
 export PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib64/pkgconfig
 export PATH := $(HOME)/venv/bmc/bin:$(PATH)
 
+BOOSTDIR := src/lib/boost
+
 SUBDIRS := \
-	src/lib/boost \
 	src/lib/libpeci \
 	src/lib/libpldm \
 	src/lib/nlohmann_json \
@@ -32,7 +33,7 @@ SUDO_SUBDIRS := \
 	src/phosphor-modbus \
 	src/dbus-sensors
 
-.PHONY: all $(SUBDIRS) clean print-subdirs clone python-env $(SUDO_SUBDIRS)
+.PHONY: all $(SUBDIRS) clean print-subdirs clone python-env $(SUDO_SUBDIRS) $(BOOSTDIR)
 
 all: merge
 
@@ -42,13 +43,20 @@ $(SUBDIRS): python-env
 $(SUDO_SUBDIRS): $(SUBDIRS)
 	sudo env "PATH=$(PATH)" $(MAKE) -C $@
 
-python-env: setup-deps
+python-env: $(BOOSTDIR)
 	@python3 -m venv ~/venv/bmc || true
 	@. ~/venv/bmc/bin/activate && \
 	pip install --upgrade pip && \
 	pip install --upgrade jsonschema && \
 	pip3 install --upgrade meson && \
 	pip3 install --break-system-packages meson ninja inflection mako jsonschema PyYAML
+
+$(BOOSTDIR): setup-deps
+	@echo "=== Building Boost using SYSTEM Python (not in venv)..."
+	env -i HOME="$(HOME)" \
+	       PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+	       PKG_CONFIG_PATH="/usr/local/lib64/pkgconfig:$(PKG_CONFIG_PATH)" \
+	       $(MAKE) -C $@
 
 setup-deps:
 	@sudo mkdir -p $(PROJ_ROOT_DIR)/build/include
@@ -102,6 +110,7 @@ setup-deps:
 		python3 \
 		python3-dbus \
 		python3-pip \
+		python3-dev \
 		python3-yaml
 
 merge: $(SUDO_SUBDIRS)
